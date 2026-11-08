@@ -369,7 +369,7 @@ export function NotchTab({
 				<SettingRow
 					icon={CloudSun}
 					label="Weather Status"
-					desc={cityName || "Auto-detect location"}
+					desc={(cityName || "Set a city in Settings") + " · Sends your choice to Open-Meteo"}
 				>
 					<div className="weather-controls">
 						<div className="unit-toggle-minimal" onClick={toggleTempUnit}>

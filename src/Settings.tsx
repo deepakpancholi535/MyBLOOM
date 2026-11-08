@@ -3,8 +3,7 @@ import { createRoot } from "react-dom/client";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Effect } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { X, Settings, Palette, PanelTop, Monitor, Layers, Info, Megaphone } from "lucide-react";
+import { X, Settings, Palette, PanelTop, Monitor, Layers, Info } from "lucide-react";
 import {
 	useSettings,
 	GeneralTab,
@@ -15,7 +14,6 @@ import {
 	AboutTab
 } from "./settings/index";
 import type { SettingsTab } from "./settings/index";
-import { useAnnouncement } from "./hooks/useAnnouncement";
 import { initTheme } from "./theme";
 import { FeaturePreview } from "./settings/FeaturePreview";
 import "./Settings.css";
@@ -75,7 +73,6 @@ function SettingsApp() {
 		});
 		return () => { void unlisten.then((fn) => fn()); };
 	}, [closeSettings]);
-	const { announcement, dismissed, dismiss } = useAnnouncement();
 
 	useEffect(() => {
 		return initTheme();
@@ -127,7 +124,7 @@ function SettingsApp() {
 
 			<div className="settings-body">
 				<div className="settings-sidebar">
-					<div className="settings-sidebar-intro"><strong>Bloom</strong><span>Make it yours</span></div>
+					<div className="settings-sidebar-intro"><strong>MyBLOOM</strong><span>Make it yours</span></div>
 					{TABS.map(({ id, label, icon: Icon }) => (
 						<button
 							key={id}
@@ -173,28 +170,6 @@ function SettingsApp() {
 							</button>
 						</div>
 					)}
-					{announcement && !dismissed && (
-						<div className={`announcement-banner severity-${announcement.severity}`}>
-							<Megaphone size={14} className="announcement-banner-icon" />
-							<div className="announcement-banner-text">
-								<span className="announcement-banner-title">{announcement.title}</span>
-								{announcement.body && (
-									<span className="announcement-banner-body">{announcement.body}</span>
-								)}
-							</div>
-							{announcement.url && (
-								<button
-									className="announcement-banner-link"
-									onClick={() => openUrl(announcement.url!)}
-								>
-									Learn more
-								</button>
-							)}
-							<button className="announcement-banner-close" onClick={dismiss} title="Dismiss">
-								<X size={12} strokeWidth={2.2} />
-							</button>
-						</div>
-					)}
 					<div className="settings-page-heading">
 						<h1>{TABS.find((tab) => tab.id === activeTab)?.label}</h1>
 						<p>{TAB_COPY[activeTab]}</p>
@@ -210,8 +185,6 @@ function SettingsApp() {
 							toggleAutostart={settings.toggleAutostart}
 							timeFormat24h={settings.timeFormat24h}
 							toggleTimeFormat24h={settings.toggleTimeFormat24h}
-							showUpdateIndicator={settings.showUpdateIndicator}
-							toggleUpdateIndicator={settings.toggleUpdateIndicator}
 							lowBatteryThreshold={settings.lowBatteryThreshold}
 							handleThresholdChange={settings.handleThresholdChange}
 							restartBloom={settings.restartBloom}
@@ -339,12 +312,6 @@ function SettingsApp() {
 					{activeTab === "about" && (
 						<AboutTab
 							appVersion={settings.appVersion}
-							autoUpdate={settings.autoUpdate}
-							toggleAutoUpdate={settings.toggleAutoUpdate}
-							updateStatus={settings.updateStatus}
-							updateVersion={settings.updateVersion}
-							checkForUpdates={settings.checkForUpdates}
-							installUpdate={settings.installUpdate}
 							exportStatus={settings.exportStatus}
 							importStatus={settings.importStatus}
 							handleExportSettings={settings.handleExportSettings}

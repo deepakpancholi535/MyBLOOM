@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { getVersion } from "@tauri-apps/api/app";
-import type { UpdateCheckResult } from "../updater";
 import { useSettingsSync } from "../hooks/useSettingsSync";
 import { reloadIfMirrorWasStale } from "../hooks/settingsMirror";
 import { hexToHsl } from "../theme";
@@ -43,7 +42,7 @@ export function useSettings() {
 		return !saveFailed.current;
 	}, []);
 	const [autostart, setAutostart] = useState(false);
-	const [weatherEnabled, setWeatherEnabled] = useState(true);
+	const [weatherEnabled, setWeatherEnabled] = useState(false);
 	const [calendarMondayFirst, setCalendarMondayFirst] = useState(false);
 	const [calendarEnabled, setCalendarEnabled] = useState(true);
 	const [controlsPanelEnabled, setControlsPanelEnabled] = useState(true);
@@ -83,9 +82,6 @@ export function useSettings() {
 	);
 	const [edgeShineEnabled, setEdgeShineEnabled] = useState(
 		() => localStorage.getItem("bloom-edge-shine-enabled") !== "false"
-	);
-	const [showUpdateIndicator, setShowUpdateIndicator] = useState(
-		() => localStorage.getItem("bloom-show-update-indicator") !== "false"
 	);
 	const [timeFormat24h, setTimeFormat24h] = useState(
 		() => localStorage.getItem("bloom-time-format-24h") === "true"
@@ -155,14 +151,7 @@ export function useSettings() {
 		return val !== null ? parseInt(val) : 200;
 	});
 	const [lowBatteryThreshold, setLowBatteryThreshold] = useState(20);
-	const [updateStatus, setUpdateStatus] = useState<
-		"idle" | "checking" | "available" | "uptodate" | "error" | "downloading" | "installing"
-	>("idle");
-	const [updateVersion, setUpdateVersion] = useState("");
 	const [appVersion, setAppVersion] = useState("");
-	const [autoUpdate, setAutoUpdate] = useState(
-		() => localStorage.getItem("bloom-auto-update") === "true"
-	);
 	const [scale, setScale] = useState(() =>
 		parseFloat(localStorage.getItem("bloom-scale") || "1.0")
 	);
@@ -229,8 +218,6 @@ export function useSettings() {
 			apply(getVal("bloom-corners-enabled"), setCornersEnabled, readBool);
 			setEdgeShineEnabled(getVal("bloom-edge-shine-enabled") !== "false");
 			apply(getVal("bloom-time-format-24h"), setTimeFormat24h, readBool);
-			apply(getVal("bloom-show-update-indicator"), setShowUpdateIndicator, readBool);
-			apply(getVal("bloom-auto-update"), setAutoUpdate, readBool);
 			apply(getVal("bloom-volume-edge-enabled"), setVolumeEdgeEnabled, readBool);
 			apply(getVal("bloom-brightness-edge-enabled"), setBrightnessEdgeEnabled, readBool);
 			apply(getVal("bloom-dock-enabled"), setDockEnabled, readBool);
@@ -368,7 +355,6 @@ export function useSettings() {
 			.then((ver) => setAppVersion(ver || "3.1.2"))
 			.catch(() => setAppVersion("3.1.2"));
 
-		checkForUpdates(false);
 	}, []);
 
 	// ── Sync settings from other windows ──
@@ -407,12 +393,10 @@ export function useSettings() {
 		"bloom-media-layout": setMediaLayout,
 		"bloom-corners-enabled": setCornersEnabled,
 		"bloom-edge-shine-enabled": setEdgeShineEnabled,
-		"bloom-show-update-indicator": setShowUpdateIndicator,
 		"bloom-time-format-24h": setTimeFormat24h,
 		"bloom-low-battery-threshold": setLowBatteryThreshold,
 		"bloom-scale": setScale,
 		"bloom-temp-unit": (v) => setTempUnitFahrenheit(v === "fahrenheit"),
-		"bloom-auto-update": setAutoUpdate,
 		"bloom-volume-overlay-enabled": setVolumeOverlayEnabled,
 		"bloom-volume-edge-enabled": setVolumeEdgeEnabled,
 		"bloom-brightness-overlay-enabled": setBrightnessOverlayEnabled,
@@ -478,59 +462,6 @@ export function useSettings() {
 
 		return () => clearTimeout(timeout);
 	}, [cityName]);
-
-	// ── Update checker ──
-	const checkForUpdates = async (manual = true) => {
-		setUpdateStatus("checking");
-		try {
-			const result = await invoke<UpdateCheckResult>("check_for_updates", { force: manual });
-			if (result.available) {
-				setUpdateStatus("available");
-				setUpdateVersion(result.version ?? "");
-			} else {
-				setUpdateStatus("uptodate");
-			}
-		} catch (e) {
-			console.error("Updater error:", e);
-			setUpdateStatus("error");
-		}
-	};
-
-	const installUpdate = async () => {
-		try {
-			setUpdateStatus("downloading");
-			await invoke("install_update");
-			setUpdateStatus("idle");
-		} catch (e) {
-			console.error(e);
-			setUpdateStatus("error");
-		}
-	};
-
-	// Reflect install progress triggered from any window (including auto-update).
-	useEffect(() => {
-		const unlisten = listen<{ status: string; progress?: number }>(
-			"auto-update-status",
-			(event) => {
-				switch (event.payload.status) {
-					case "downloading":
-						setUpdateStatus("downloading");
-						break;
-					case "installing":
-						setUpdateStatus("installing");
-						break;
-					case "done":
-						setUpdateStatus((prev) =>
-							prev === "downloading" || prev === "installing" ? "idle" : prev
-						);
-						break;
-				}
-			}
-		);
-		return () => {
-			unlisten.then((fn) => fn());
-		};
-	}, []);
 
 	// ── Autostart ──
 	const toggleAutostart = async () => {
@@ -671,11 +602,6 @@ export function useSettings() {
 		saveSetting("bloom-corners-enabled", String(next));
 	};
 
-	const toggleUpdateIndicator = () => {
-		const next = !showUpdateIndicator;
-		setShowUpdateIndicator(next);
-		saveSetting("bloom-show-update-indicator", String(next));
-	};
 
 	const toggleTimeFormat24h = () => {
 		const next = !timeFormat24h;
@@ -789,11 +715,6 @@ export function useSettings() {
 		saveSetting("bloom-dock-extras-custom-folders", next);
 	};
 
-	const toggleAutoUpdate = () => {
-		const next = !autoUpdate;
-		setAutoUpdate(next);
-		saveSetting("bloom-auto-update", String(next));
-	};
 
 	// ── Value setters ──
 	const setDockModeValue = (newMode: string) => {
@@ -988,14 +909,10 @@ export function useSettings() {
 		// System
 		autostart,
 		toggleAutostart,
-		autoUpdate,
-		toggleAutoUpdate,
 		lowBatteryThreshold,
 		handleThresholdChange,
 		timeFormat24h,
 		toggleTimeFormat24h,
-		showUpdateIndicator,
-		toggleUpdateIndicator,
 		scale,
 		handleScaleChange,
 		cornersEnabled,
@@ -1110,12 +1027,7 @@ export function useSettings() {
 		brightnessEdgeEnabled,
 		toggleBrightnessEdge,
 
-		// Updates
-		updateStatus,
-		updateVersion,
 		appVersion,
-		checkForUpdates,
-		installUpdate,
 
 		// Import / Export
 		exportStatus,

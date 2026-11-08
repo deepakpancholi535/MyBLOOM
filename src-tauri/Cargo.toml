@@ -1,8 +1,8 @@
 [package]
 name = "bloom"
 version = "3.10.1"
-description = ""
-authors = ["sehaz"]
+description = "A Windows dock and notch desktop application"
+authors = ["Deepak Pancholi"]
 edition = "2021"
 license = "GPL-3.0-only"
 
@@ -80,8 +80,6 @@ windows = { version = "0.61", features = [
 base64 = "0.22"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-clipboard-manager = "2"
-# Releases use signed raw NSIS/MSI installers, so ZIP extraction is unnecessary.
-tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls", "system-proxy"] }
 window-vibrancy = "0.7.1"
 wmi = "0.14"
 tokio = { version = "1", features = ["time", "sync"] }
@@ -92,4 +90,3 @@ zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2
 tauri-plugin-drag = "2.1.1"
 tauri-plugin-dialog = "2"
 rustfft = "6"
-

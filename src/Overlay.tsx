@@ -599,10 +599,8 @@ function OverlayApp() {
 		return initTheme();
 	}, []);
 
-	type Mode = "idle" | "volume" | "brightness" | "splash" | "updating";
+	type Mode = "idle" | "volume" | "brightness" | "splash";
 	const [mode, setMode] = useState<Mode>("idle");
-	const [updateStatus, setUpdateStatus] = useState<string>("checking");
-	const [updateProgress, setUpdateProgress] = useState(0);
 
 	// Volume state
 	const [volume, setVolume] = useState(0.5);
@@ -768,31 +766,11 @@ function OverlayApp() {
 			}
 		});
 
-		const autoUpdatePromise = listen<{ status: string; progress?: number }>(
-			"auto-update-status",
-			(event) => {
-				const { status, progress } = event.payload;
-				setUpdateStatus(status);
-				if (progress !== undefined) setUpdateProgress(progress);
-
-				if (status === "checking" || status === "downloading" || status === "installing") {
-					splashActiveRef.current = true;
-					setMode("updating");
-					invoke("set_splash_fullscreen", { fullscreen: true });
-				} else if (status === "done") {
-					splashActiveRef.current = false;
-					setMode("idle");
-					invoke("set_splash_fullscreen", { fullscreen: false });
-				}
-			}
-		);
-
 		return () => {
 			volPromise.then((fn) => fn());
 			volEdgePromise.then((fn) => fn());
 			brightPromise.then((fn) => fn());
 			brightEdgePromise.then((fn) => fn());
-			autoUpdatePromise.then((fn) => fn());
 			document.removeEventListener("contextmenu", preventContext);
 		};
 	}, [
@@ -900,7 +878,7 @@ function OverlayApp() {
 	}, []);
 
 	useEffect(() => {
-		if ((mode === "splash" || mode === "updating") && mixerExpanded) {
+		if (mode === "splash" && mixerExpanded) {
 			collapseMixer();
 		}
 	}, [mode, mixerExpanded, collapseMixer]);
@@ -937,7 +915,7 @@ function OverlayApp() {
 	useEffect(() => {
 		const width = window.innerWidth;
 		const height = window.innerHeight;
-		if (mode === "splash" || mode === "updating") {
+		if (mode === "splash") {
 			sendOverlayRegion([{ x: 0, y: 0, width, height }]);
 			return;
 		}
@@ -995,33 +973,8 @@ function OverlayApp() {
 				)}
 			</AnimatePresence>
 
-			{/* Auto-Update Splash */}
-			<AnimatePresence>
-				{mode === "updating" && (
-					<motion.div
-						className="update-splash"
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.3 }}
-					>
-						<img src="/bloom.png" className="update-splash-logo" alt="Bloom" />
-						<p className="update-splash-text">
-							{updateStatus === "checking" && "Checking for updates..."}
-							{updateStatus === "downloading" && `Downloading update... ${updateProgress}%`}
-							{updateStatus === "installing" && "Installing update..."}
-						</p>
-						{updateStatus === "downloading" && (
-							<div className="update-progress-bar">
-								<div className="update-progress-fill" style={{ width: `${updateProgress}%` }} />
-							</div>
-						)}
-					</motion.div>
-				)}
-			</AnimatePresence>
-
 			{/* Volume / Brightness Overlay */}
-			{mode !== "splash" && mode !== "updating" && (
+			{mode !== "splash" && (
 				<div
 					style={{
 						zoom: scale,

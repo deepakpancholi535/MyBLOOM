@@ -14,7 +14,6 @@ mod shelf_preview;
 mod state;
 mod tray;
 mod types;
-mod updater;
 mod usb;
 mod utils;
 mod wifi;
@@ -109,7 +108,6 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_drag::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
@@ -202,9 +200,6 @@ fn main() {
             export_settings_to_file,
             import_settings_from_file,
             reset_settings,
-            updater::check_for_updates,
-            updater::install_update,
-            updater::get_update_state,
             dock_extras::get_dock_extras,
             dock_extras::open_dock_extra,
             dock_extras::eject_dock_extra,
@@ -237,16 +232,6 @@ fn main() {
             if taskbar_marker_exists() {
                 restore_taskbar_after_crash();
                 NATIVE_TASKBAR_HIDDEN.store(false, Ordering::Relaxed);
-            }
-
-            // Update check on startup (non-blocking). Always runs so the UI can
-            // show an update badge; auto-install only happens when the user
-            // enabled it and the release has aged past the rollout gate.
-            {
-                let app_handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    updater::run_startup_check(app_handle).await;
-                });
             }
 
             let window = app.get_webview_window("main").unwrap();
@@ -407,16 +392,16 @@ fn main() {
             {
                 use tauri::menu::{Menu, MenuItem};
                 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-                let quit_item = MenuItem::with_id(app, "quit", "Quit Bloom", true, None::<&str>)?;
+                let quit_item = MenuItem::with_id(app, "quit", "Quit MyBLOOM", true, None::<&str>)?;
                 let restart_item =
-                    MenuItem::with_id(app, "restart", "Restart Bloom", true, None::<&str>)?;
+                    MenuItem::with_id(app, "restart", "Restart MyBLOOM", true, None::<&str>)?;
                 let settings_item =
                     MenuItem::with_id(app, "settings", "Open Settings", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&settings_item, &restart_item, &quit_item])?;
                 let ah = app.handle().clone();
                 TrayIconBuilder::new()
                     .icon(app.default_window_icon().unwrap().clone())
-                    .tooltip("Bloom")
+                    .tooltip("MyBLOOM")
                     .menu(&menu)
                     .on_menu_event(move |_, event| match event.id().as_ref() {
                         "quit" => {

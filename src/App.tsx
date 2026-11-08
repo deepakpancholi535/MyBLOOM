@@ -4,7 +4,6 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getVersion } from "@tauri-apps/api/app";
-import type { UpdateCheckResult } from "./updater";
 import { batteryTooltip, type BatteryDetails } from "./batteryTooltip";
 import {
 	createRegionSender,
@@ -28,9 +27,7 @@ import { CompactMediaPlayer } from "./CompactMediaPlayer";
 import { useWeather } from "./hooks/useWeather";
 import { useSettingsSync } from "./hooks/useSettingsSync";
 import { useTrailingThrottle } from "./hooks/useTrailingThrottle";
-import { useAnnouncement } from "./hooks/useAnnouncement";
 import { reloadIfMirrorWasStale } from "./hooks/settingsMirror";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import type { WidgetConfig } from "./components/StatusWidgetConfig";
@@ -56,7 +53,6 @@ import {
 	Play,
 	Pause,
 	RotateCcw,
-	Megaphone,
 	Type,
 	X,
 	ChevronLeft,
@@ -289,41 +285,6 @@ function BatteryIcon({
 	);
 }
 
-function GreenDownArrowIcon() {
-	return (
-		<div
-			style={{
-				display: "inline-flex",
-				alignItems: "center",
-				justifyContent: "center",
-				width: "18px",
-				height: "18px",
-				borderRadius: "50%",
-				background: "rgba(50, 215, 75, 0.15)",
-				border: "1px solid rgba(50, 215, 75, 0.35)",
-				boxShadow: "0 0 8px rgba(50, 215, 75, 0.25)",
-				flexShrink: 0,
-				verticalAlign: "middle"
-			}}
-		>
-			<svg
-				width="10"
-				height="10"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="#32D74B"
-				strokeWidth="3"
-				strokeLinecap="round"
-				strokeLinejoin="round"
-			>
-				<line x1="12" y1="4" x2="12" y2="16"></line>
-				<polyline points="18 10 12 16 6 10"></polyline>
-				<line x1="6" y1="20" x2="18" y2="20"></line>
-			</svg>
-		</div>
-	);
-}
-
 export const Visualizer = memo(function Visualizer({
 	isPlaying,
 	bars = 5,
@@ -448,7 +409,6 @@ type BloomMode =
 	| "music"
 	| "calendar"
 	| "command-center"
-	| "announcement"
 	| "status"
 	| "shelf"
 	| "wifi"
@@ -660,7 +620,6 @@ function App() {
 
 	const [eventPeek, setEventPeek] = useState(false);
 	const eventPeekTimeoutRef = useRef<any>(null);
-	const updatePulseTimerRef = useRef<any>(null);
 	const triggerEventPeek = useCallback((duration = 3000) => {
 		setEventPeek(true);
 		if (eventPeekTimeoutRef.current) clearTimeout(eventPeekTimeoutRef.current);
@@ -754,58 +713,6 @@ function App() {
 		setWindowLabel(getCurrentWebviewWindow().label);
 	}, []);
 
-	// Update state
-	const [updateAvailable, setUpdateAvailable] = useState(false);
-	const [showUpdateIndicator, setShowUpdateIndicator] = useState(
-		() => localStorage.getItem("bloom-show-update-indicator") !== "false"
-	);
-	const [showUpdatePulse, setShowUpdatePulse] = useState(false);
-
-	useEffect(() => {
-		if (windowLabel !== "main") return;
-
-		let unlisten: (() => void) | undefined;
-		let disposed = false;
-
-		listen<UpdateCheckResult>("update-available", (event) => {
-			setUpdateAvailable(event.payload.available);
-			if (!event.payload.available) {
-				setShowUpdatePulse(false);
-				if (updatePulseTimerRef.current) clearTimeout(updatePulseTimerRef.current);
-				return;
-			}
-			setShowUpdatePulse(true);
-			if (notchMode === "peek") triggerEventPeek(6000);
-			if (updatePulseTimerRef.current) clearTimeout(updatePulseTimerRef.current);
-			updatePulseTimerRef.current = setTimeout(() => {
-				setShowUpdatePulse(false);
-			}, 6000);
-		}).then((fn) => {
-			if (disposed) fn();
-			else unlisten = fn;
-		});
-
-		invoke<UpdateCheckResult>("get_update_state")
-			.then((state) => {
-				// Only restore a badge; clearing is left to check results so a
-				// late mount read cannot race an "update-available" event.
-				if (state.available) setUpdateAvailable(true);
-			})
-			.catch((e) => console.error("Failed to read update state:", e));
-
-		return () => {
-			disposed = true;
-			unlisten?.();
-			if (updatePulseTimerRef.current) clearTimeout(updatePulseTimerRef.current);
-		};
-	}, [windowLabel, notchMode, triggerEventPeek]);
-
-	// Remote announcement shown as a persistent notch card until dismissed.
-	const {
-		announcement,
-		dismissed: announcementDismissed,
-		dismiss: dismissAnnouncement
-	} = useAnnouncement();
 	const [deviceAlert, setDeviceAlert] = useState<DeviceAlert | null>(null);
 	// Each connected earbud's own levels, as last reported, for Connected devices.
 	const [budsById, setBudsById] = useState<Record<string, BudsBattery>>({});
@@ -825,10 +732,6 @@ function App() {
 		},
 		[]
 	);
-	const announcementShownRef = useRef<string | null>(null);
-	const announcementOpen = !!announcement && !announcementDismissed;
-	const announcementOpenRef = useRef(false);
-	announcementOpenRef.current = announcementOpen;
 
 	const [isVisible, setIsVisible] = useState(true);
 	const [isImpacted, setIsImpacted] = useState(false);
@@ -1308,7 +1211,6 @@ function App() {
 					}
 				} catch {}
 			},
-			"bloom-show-update-indicator": (value) => setShowUpdateIndicator(String(value) === "true"),
 			"bloom-time-format-24h": setTimeFormat24h
 		},
 		[windowLabel]
@@ -1406,7 +1308,7 @@ function App() {
 		};
 	}, [windowLabel, systemSettingsReady, waitForStartupSplash, dockEnabled, dockMode, notchMode]);
 
-	// Bloom mode state: 'music', 'calendar', 'command-center', 'announcement', 'shelf', or 'status'
+	// Bloom mode state: 'music', 'calendar', 'command-center', 'shelf', or 'status'
 	const [bloomMode, setBloomMode] = useState<BloomMode>("status");
 
 	// Shelf: files and selected text stashed in the notch via drag-and-drop.
@@ -1830,7 +1732,7 @@ function App() {
 			console.info("[shelf] drag-enter:", event.payload.paths ?? event.payload.text);
 			setIsDragHovering(true);
 			const prev = bloomModeRef.current;
-			if (prev === "announcement" || prev === "shelf") return;
+			if (prev === "shelf") return;
 			shelfPrevModeRef.current = prev;
 			shelfPrevOpenRef.current = isOpenRef.current;
 			shelfDragActiveRef.current = true;
@@ -1857,10 +1759,8 @@ function App() {
 			if (paths.length === 0 && !text) return;
 			if (paths.length > 0) addShelfItems(paths);
 			if (text) addShelfText(text);
-			if (bloomModeRef.current !== "announcement") {
-				setIsOpen(true);
-				setBloomMode("shelf");
-			}
+			setIsOpen(true);
+			setBloomMode("shelf");
 			collapseShelfSoon();
 		};
 
@@ -1885,22 +1785,6 @@ function App() {
 			unlisteners.forEach((fn) => fn());
 		};
 	}, []);
-
-	// Open the notch on an unseen announcement; stays open until dismissed.
-	useEffect(() => {
-		if (!announcement || announcementDismissed) return;
-		if (announcementShownRef.current === announcement.id) return;
-		announcementShownRef.current = announcement.id;
-		setBloomMode("announcement");
-		if (notchMode === "peek") triggerEventPeek(6000);
-	}, [announcement, announcementDismissed, notchMode, triggerEventPeek]);
-
-	// Leave the announcement view once it is dismissed (or gone).
-	useEffect(() => {
-		if (bloomMode === "announcement" && (!announcement || announcementDismissed)) {
-			setBloomMode(mediaInfo.has_media && isPlaying ? "music" : "status");
-		}
-	}, [bloomMode, announcement, announcementDismissed, mediaInfo.has_media, isPlaying]);
 
 	// Window height is now kept constant to prevent rendering layout lag and sharp corners
 
@@ -1942,7 +1826,6 @@ function App() {
 	// Wheel and swipe navigate panels, even from a collapsed live activity.
 	// Music and shelf remain entry points through their activity affordances.
 	const cycleBloomMode = (direction: 1 | -1) => {
-		if (bloomMode === "announcement") return false;
 		const panels = NOTCH_PANELS.filter(panelAvailable);
 		const currentIndex = panels.indexOf(bloomMode as NotchPanel);
 		const nextMode = currentIndex === -1
@@ -2160,7 +2043,7 @@ function App() {
 	const collapsedMode = musicActivity && !timerActive ? "music" : "status";
 	const showMusicBubble = musicActivity && timerActive && !isOpen && isVisible && !isHidden;
 	const showShelfBubble =
-		shelfItems.length > 0 && !isOpen && isVisible && !isHidden && bloomMode !== "announcement";
+		shelfItems.length > 0 && !isOpen && isVisible && !isHidden;
 	restingModeRef.current = collapsedMode;
 	bloomModeRef.current = bloomMode;
 
@@ -2174,7 +2057,6 @@ function App() {
 
 	// Expands the notch into a panel, or into an activity's own view.
 	const openNotch = (view: NotchPanel | "music" | "shelf") => {
-		if (bloomMode === "announcement") return;
 		setIsOpen(true);
 		setBloomMode(view);
 	};
@@ -2238,7 +2120,7 @@ function App() {
 
 	// A device connecting or disconnecting takes the pill for a few seconds,
 	// like the Dynamic Island: its drawing, name and battery. It never takes
-	// over a notch the user has open, an announcement or the shelf. In peek
+	// over a notch the user has open or the shelf. In peek
 	// and smart modes it shows the notch for as long as it lasts.
 	//
 	// Alerts for other devices wait their turn (two drives plugged in
@@ -2265,7 +2147,7 @@ function App() {
 	};
 	const showDeviceAlert = useCallback((alert: Omit<DeviceAlert, "runId">) => {
 		const mode = bloomModeRef.current;
-		if (isOpenRef.current || mode === "announcement" || mode === "shelf") return;
+		if (isOpenRef.current || mode === "shelf") return;
 		const current = deviceAlertRef.current;
 		if (current && current.id !== alert.id) {
 			const queue = deviceAlertQueueRef.current.filter((queued) => queued.id !== alert.id);
@@ -2391,7 +2273,7 @@ function App() {
 	// session exists, the timer (with music in its bubble) once one is set, and
 	// the clock otherwise. An open notch is left alone.
 	useEffect(() => {
-		if (isOpen || announcementOpenRef.current) return;
+		if (isOpen) return;
 		if ((bloomMode === "status" || bloomMode === "music") && bloomMode !== collapsedMode) {
 			setBloomMode(collapsedMode);
 		}
@@ -3086,7 +2968,6 @@ function App() {
 
 	// Calculate width dynamically based on enabled features
 	const getDynamicWidth = () => {
-		if (bloomMode === "announcement" && announcement && !announcementDismissed) return 380;
 		if (bloomMode === "device" && deviceAlert) return 330;
 		if (isCalendarMode) return 480;
 		if (bloomMode === "shelf") return 380;
@@ -3101,7 +2982,7 @@ function App() {
 			return Math.max(Math.min(200 + totalWidgets * 50, 380) - clock24hTrim, statusFitWidth);
 		}
 		if (isMusicMode && isOpen) return mediaLayout === "compact" ? 300 : 340;
-		if ((showPowerPulse || showLowBatteryPulse || showUpdatePulse) && !isHovered) return 200;
+		if ((showPowerPulse || showLowBatteryPulse) && !isHovered) return 200;
 
 		let w = 140 - clock24hTrim;
 		if (isMusicMode) {
@@ -3115,10 +2996,6 @@ function App() {
 	const getDynamicHeight = () => {
 		if (!isExpanded || !isVisible || isHidden) {
 			return isImpacted ? 28.9 : 44.2;
-		}
-		// Announcement card: body is line-clamped, so a fixed size fits both cases.
-		if (bloomMode === "announcement" && announcement && !announcementDismissed) {
-			return announcement.url ? 168 : 148;
 		}
 		// Device alert: the drawing, with room for its motion.
 		if (bloomMode === "device" && deviceAlert) return 76;
@@ -3599,22 +3476,7 @@ function App() {
 												style={bloomMode === "device" || deviceAlertOnScreen ? { visibility: "hidden" } : undefined}
 											>
 												<AnimatePresence mode="wait">
-													{(showPowerPulse || showLowBatteryPulse || showUpdatePulse) &&
-													!isHovered ? (
-														showUpdatePulse ? (
-															<motion.div
-																key="update-pulse-view"
-																initial={{ opacity: 0, scale: 0.95, filter: "blur(4px)" }}
-																animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-																exit={{ opacity: 0, scale: 1.05, filter: "blur(4px)" }}
-																className="power-pulse-content"
-															>
-																<GreenDownArrowIcon />
-																<span className="label" style={{ color: "#32D74B" }}>
-																	Update Available
-																</span>
-															</motion.div>
-														) : (
+													{(showPowerPulse || showLowBatteryPulse) && !isHovered ? (
 															<motion.div
 																key="pulse-view"
 																initial={{ opacity: 0, scale: 0.95, filter: "blur(4px)" }}
@@ -3622,7 +3484,6 @@ function App() {
 																exit={{ opacity: 0, scale: 1.05, filter: "blur(4px)" }}
 																className="power-pulse-content"
 															>
-																{updateAvailable && <GreenDownArrowIcon />}
 																<BatteryIcon
 																	charging={isCharging}
 																	level={batteryLevel}
@@ -3639,8 +3500,7 @@ function App() {
 																			: "On Battery"}{" "}
 																	• {batteryLevel}%
 																</span>
-															</motion.div>
-														)
+														</motion.div>
 													) : (
 														<motion.div
 															key="standard-view"
@@ -3755,9 +3615,6 @@ function App() {
 																		</motion.button>
 																	)}
 																</AnimatePresence>
-																{updateAvailable && showUpdateIndicator && (
-																	<div className="update-dot" />
-																)}
 															</div>
 
 															{/* Right: album art on a retained music session, otherwise status widgets */}
@@ -4236,49 +4093,6 @@ function App() {
 											) : (
 												deviceAlert.connected &&
 												deviceAlert.battery !== null && <DeviceBatteryRing level={deviceAlert.battery} />
-											)}
-										</motion.div>
-									)}
-								</AnimatePresence>
-
-								{/* Announcement Card */}
-								<AnimatePresence>
-									{bloomMode === "announcement" && announcement && !announcementDismissed && (
-										<motion.div
-											className={`announcement-content severity-${announcement.severity}`}
-											onClick={(e) => e.stopPropagation()}
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											exit={{
-												opacity: 0,
-												filter: "blur(4px)",
-												transition: { duration: 0.1 }
-											}}
-											transition={{ type: "spring", stiffness: 400, damping: 30 }}
-										>
-											<div className="announcement-header">
-												<div className="announcement-heading">
-													<Megaphone size={14} className="announcement-icon" />
-													<span className="announcement-title">{announcement.title}</span>
-												</div>
-												<button
-													className="announcement-close"
-													onClick={dismissAnnouncement}
-													title="Dismiss"
-												>
-													<X size={13} strokeWidth={2.2} />
-												</button>
-											</div>
-											{announcement.body && (
-												<p className="announcement-body">{announcement.body}</p>
-											)}
-											{announcement.url && (
-												<button
-													className="announcement-link"
-													onClick={() => openUrl(announcement.url!)}
-												>
-													Learn more
-												</button>
 											)}
 										</motion.div>
 									)}

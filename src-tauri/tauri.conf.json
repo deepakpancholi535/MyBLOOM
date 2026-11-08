@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "bloom",
+  "productName": "MyBLOOM",
   "version": "3.10.1",
-  "identifier": "com.sehaz.bloom",
+  "identifier": "in.deepakpancholi",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "bloom",
+        "title": "MyBLOOM",
         "width": 1920,
         "height": 420,
         "x": 0,
@@ -76,7 +76,7 @@
       },
       {
         "label": "dock",
-        "title": "Bloom Dock",
+        "title": "MyBLOOM Dock",
         "url": "dock.html",
         "width": 1920,
         "height": 600,
@@ -97,18 +97,18 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' ipc: http://ipc.localhost https://api.open-meteo.com https://geocoding-api.open-meteo.com https://ipapi.co http://ip-api.com https://bloom.sehaz.space"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://api.open-meteo.com https://geocoding-api.open-meteo.com"
     }
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "targets": "all",
-    "publisher": "Sehajveer Singh",
-    "copyright": "Copyright © 2026 Sehajveer Singh",
+    "publisher": "Deepak Pancholi",
+    "copyright": "Copyright © 2026 Deepak Pancholi",
     "category": "Utility",
     "shortDescription": "A notch and dock for Windows",
-    "longDescription": "Bloom replaces the Windows taskbar with a dock and adds a notch for media, quick controls and status.",
+    "longDescription": "MyBLOOM is a modified version of Bloom by Sehajveer Singh, licensed under GPL-3.0-only. It replaces the Windows taskbar with a dock and adds a notch for media, quick controls and status.",
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper"
@@ -122,13 +122,4 @@
       "icons/icon.ico"
     ]
   },
-  "plugins": {
-    "updater": {
-      "active": true,
-      "endpoints": [
-        "https://github.com/SehajveerSingh2005/bloom/releases/latest/download/latest.json"
-      ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQzQTAzNTlBRUFFODRFMDUKUldRRlR1anFtaldnUThWRExWQ2ZDVmxhNGlFREFPYWZoV1BWbGdQNUxxdHpnbzZPbGh4SWxVMk0K"
-    }
-  }
 }

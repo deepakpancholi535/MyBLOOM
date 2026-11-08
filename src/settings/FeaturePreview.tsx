@@ -29,7 +29,7 @@ type Feature = "clock" | "battery" | "theme" | "resting" | "device" | "music" | 
 
 const FEATURES: Partial<Record<SettingsTab, { id: Feature; label: string; description: string }[]>> = {
 	general: [
-		{ id: "clock", label: "Clock", description: "Time format and update status as they appear in the notch." },
+		{ id: "clock", label: "Clock", description: "Time format as it appears in the notch." },
 		{
 			id: "battery",
 			label: "Battery alert",
@@ -249,9 +249,6 @@ function NotchPreview({
 							</div>
 							<div className="time-center settings-preview-time">
 								<span>{clock}</span>
-								{settings.showUpdateIndicator && (
-									<span className="settings-preview-update-dot" aria-label="Update indicator" />
-								)}
 							</div>
 							<div className="side-content right">
 								{feature === "resting" && (
@@ -397,9 +394,7 @@ function previewDescription(feature: Feature, settings: Settings, fallback: stri
 			return (
 				(settings.timeFormat24h ? "24-hour time" : "12-hour time") +
 				" · Launch at login " +
-				(settings.autostart ? "on" : "off") +
-				" · Update available: dot " +
-				(settings.showUpdateIndicator ? "on" : "off")
+				(settings.autostart ? "on" : "off")
 			);
 		case "battery":
 			return "Sample battery: 15% · Alert threshold: " + settings.lowBatteryThreshold + "%";

@@ -79,7 +79,7 @@ mod tests {
     #[ignore = "real hidden WebView2 lifecycle; run explicitly"]
     fn settings_can_be_created_reused_destroyed_and_reopened() {
         let mut context = tauri::generate_context!();
-        context.config_mut().identifier = "com.sehaz.bloom.settings-lifecycle-test".into();
+        context.config_mut().identifier = "in.deepakpancholi.settings-lifecycle-test".into();
         context
             .config_mut()
             .app

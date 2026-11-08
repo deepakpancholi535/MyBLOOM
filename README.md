@@ -180,3 +180,11 @@ Licensed under [GPLv3](LICENSE).
 **Your desktop is waiting.**
 
 </div>
+## MyBLOOM private build
+
+This local branch is a modified GPL-3.0-only build maintained by Deepak
+Pancholi. It removes the auto-updater, remote announcements, IP geolocation,
+and remote fonts. Weather is off by default and only uses the city and
+coordinates selected by the user with Open-Meteo. See
+[NOTICE-MODIFICATIONS.md](NOTICE-MODIFICATIONS.md) and
+[MY-BUILD-AND-SAFETY-GUIDE.md](MY-BUILD-AND-SAFETY-GUIDE.md).
